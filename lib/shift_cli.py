@@ -27,8 +27,8 @@ class ShiftBriefCLI:
         - Mention that this is a shift handoff brief CLI.
         - Include the available commands.
         """
-        # TODO: Print welcome text and command help.
-        pass
+        print("Shift Handoff Brief CLI")
+        print(self.command_help())
 
     def command_help(self):
         """
@@ -43,8 +43,16 @@ class ShiftBriefCLI:
         - exit
         - quit
         """
-        # TODO: Return a string describing the available commands.
-        pass
+        return (
+            "Available commands:\n"
+            "  brief <shift notes>\n"
+            "  revise <feedback>\n"
+            "  history\n"
+            "  reset\n"
+            "  help\n"
+            "  exit\n"
+            "  quit"
+        )
 
     def handle_command(self, raw_input):
         """
@@ -64,11 +72,45 @@ class ShiftBriefCLI:
         - ValueError should become a readable Input Error.
         - RuntimeError should become a readable Service Error.
         """
-        # TODO: Validate raw_input.
-        # TODO: Parse the command and payload.
-        # TODO: Route supported commands.
-        # TODO: Return helpful messages for errors and unknown commands.
-        pass
+        if raw_input is None or not isinstance(raw_input, str) or not raw_input.strip():
+            return "Input Error: Enter a command. Type 'help' for guidance."
+
+        stripped = raw_input.strip()
+        parts = stripped.split(maxsplit=1)
+        command = parts[0].lower()
+        payload = parts[1].strip() if len(parts) > 1 else ""
+
+        if command == "help":
+            return self.command_help()
+        if command in ("exit", "quit"):
+            self.running = False
+            return "Goodbye."
+        if command == "reset":
+            self.ai_client.reset()
+            return "Conversation history reset."
+        if command == "history":
+            count = self.ai_client.message_count()
+            return f"Conversation messages: {count}"
+        if command == "brief":
+            if not payload:
+                return "Input Error: Shift notes are required. Use brief <shift notes>."
+            try:
+                return self.brief_builder.create_brief(self.ai_client, payload)
+            except ValueError as error:
+                return f"Input Error: {error}"
+            except RuntimeError as error:
+                return f"Service Error: {error}"
+        if command == "revise":
+            if not payload:
+                return "Input Error: Revision feedback is required. Use revise <feedback>."
+            try:
+                return self.brief_builder.revise_brief(self.ai_client, payload)
+            except ValueError as error:
+                return f"Input Error: {error}"
+            except RuntimeError as error:
+                return f"Service Error: {error}"
+
+        return "Input Error: Unknown command. Type 'help' for guidance."
 
     def run(self):
         """
@@ -82,9 +124,15 @@ class ShiftBriefCLI:
         - Print returned messages.
         - Stop cleanly if EOFError occurs.
         """
-        # TODO: Display welcome text.
-        # TODO: Run the input loop.
-        pass
+        self.display_welcome()
+        while self.running:
+            try:
+                raw_input = input("> ")
+            except EOFError:
+                break
+
+            response = self.handle_command(raw_input)
+            print(response)
 
 
 def main():

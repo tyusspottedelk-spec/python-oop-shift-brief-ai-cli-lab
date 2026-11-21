@@ -35,14 +35,36 @@ class OllamaChatClient:
             - preserve previous valid history,
             - raise RuntimeError with a clear service-error message.
         """
-        # TODO: Validate the prompt.
-        # TODO: Create and append the user message.
-        # TODO: Call ollama.chat().
-        # TODO: Extract assistant content from the response.
-        # TODO: Append the assistant message after a successful response.
-        # TODO: Return the assistant response text.
-        # TODO: Roll back the failed user message and raise RuntimeError if needed.
-        pass
+        if prompt is None or not isinstance(prompt, str) or not prompt.strip():
+            raise ValueError("Prompt cannot be empty.")
+
+        cleaned_prompt = prompt.strip()
+        user_message = {"role": "user", "content": cleaned_prompt}
+        previous_history = [message.copy() for message in self.history]
+        self.history.append(user_message)
+
+        try:
+            response = ollama.chat(model=self.model_name, messages=self.history)
+
+            if isinstance(response, dict):
+                message = response.get("message")
+                if isinstance(message, dict):
+                    content = message.get("content")
+                else:
+                    content = getattr(message, "content", None)
+            else:
+                message = getattr(response, "message", None)
+                content = getattr(message, "content", None)
+
+            if not isinstance(content, str) or not content.strip():
+                raise ValueError("The AI service returned blank assistant content.")
+
+            cleaned_content = content.strip()
+            self.history.append({"role": "assistant", "content": cleaned_content})
+            return cleaned_content
+        except Exception as error:
+            self.history[:] = previous_history
+            raise RuntimeError(f"AI service request failed: {error}") from error
 
     def reset(self):
         """
@@ -51,8 +73,7 @@ class OllamaChatClient:
         Requirements:
         - After this method runs, self.history should be an empty list.
         """
-        # TODO: Clear conversation history.
-        pass
+        self.history.clear()
 
     def message_count(self):
         """
@@ -62,8 +83,7 @@ class OllamaChatClient:
         - Return an integer.
         - Count both user messages and assistant messages.
         """
-        # TODO: Return the number of stored messages.
-        pass
+        return len(self.history)
 
     def get_transcript(self):
         """
@@ -74,5 +94,4 @@ class OllamaChatClient:
         - Do not return the internal self.history list directly.
         - The returned message dictionaries should also be copies.
         """
-        # TODO: Return a copy of the transcript.
-        pass
+        return [message.copy() for message in self.history]
